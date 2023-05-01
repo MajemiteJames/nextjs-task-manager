@@ -14,18 +14,28 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
-  async signUp(authCredentialsDto: AuthCredentialsDto): Promise<void> {
-    return this.usersRepository.createUser(authCredentialsDto);
+  async signUp(
+    authCredentialsDto: AuthCredentialsDto,
+  ): Promise<{ accessToken: string }> {
+    this.usersRepository.createUser(authCredentialsDto);
+    delete authCredentialsDto.password;
+    const payload: JwtPayload = {
+      user: authCredentialsDto,
+      email: authCredentialsDto.email,
+    };
+    const accessToken: string = await this.jwtService.sign(payload);
+    return { accessToken };
   }
 
   async signIn(
     authCredentialsDto: AuthCredentialsDto,
   ): Promise<{ accessToken: string }> {
-    const { username, password } = authCredentialsDto;
-    const user = await this.usersRepository.findOne({ username });
+    const { email, password } = authCredentialsDto;
+    const user = await this.usersRepository.findOne({ email });
 
     if (user && (await bcrypt.compare(password, user.password))) {
-      const payload: JwtPayload = { username };
+      delete user.password;
+      const payload: JwtPayload = { user, email };
       const accessToken: string = await this.jwtService.sign(payload);
       return { accessToken };
     } else {
